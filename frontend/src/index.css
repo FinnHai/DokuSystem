@@ -2,7 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  -webkit-font-smoothing: antialiased;
+  scroll-behavior: smooth;
+}
+
 .richtext-content:focus {
-  outline: 2px solid hsl(var(--p));
+  outline: 2px solid hsl(var(--p) / 0.6);
   outline-offset: 2px;
+  border-radius: 0 0 0.5rem 0.5rem;
+}
+
+/* Dezente, einheitliche Scrollbars */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: oklch(var(--bc) / 0.18);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--bc) / 0.32);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Sanfte Übergänge für interaktive Elemente */
+.btn,
+.badge,
+.card,
+.menu li > * {
+  transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.1s ease;
+}
+.btn:active {
+  transform: scale(0.97);
+}
+
+/* Tabellenzeilen dezent hervorheben */
+.table tbody tr.hover:hover {
+  background: oklch(var(--p) / 0.04);
 }
