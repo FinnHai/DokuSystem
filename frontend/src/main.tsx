@@ -7,6 +7,7 @@ import AdminUsers from "./pages/AdminUsers";
 import AuditLog from "./pages/AuditLog";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Reports from "./pages/Reports";
 import ReviewQueue from "./pages/ReviewQueue";
 import ServiceGroupDetail from "./pages/ServiceGroupDetail";
 import ServiceGroups from "./pages/ServiceGroups";
@@ -27,6 +28,7 @@ const router = createBrowserRouter([
       { path: "/service-groups", element: <Protected><ServiceGroups /></Protected> },
       { path: "/service-groups/:id", element: <Protected><ServiceGroupDetail /></Protected> },
       { path: "/reviews", element: <Protected><ReviewQueue /></Protected> },
+      { path: "/reports", element: <Protected><Reports /></Protected> },
       { path: "/admin/users", element: <Protected><AdminUsers /></Protected> },
       { path: "/admin/audit", element: <Protected><AuditLog /></Protected> },
       { path: "*", element: <Navigate to="/" replace /> },

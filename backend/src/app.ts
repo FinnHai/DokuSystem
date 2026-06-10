@@ -12,6 +12,7 @@ import {
   dashboardRouter,
   moduleDefRouter,
   notificationRouter,
+  reportsRouter,
   reviewRouter,
 } from "./routes/misc";
 import { serviceGroupRouter } from "./routes/serviceGroups";
@@ -36,6 +37,7 @@ export function createApp(): express.Express {
   app.use("/api/notifications", notificationRouter);
   app.use("/api/dashboard", dashboardRouter);
   app.use("/api/reviews", reviewRouter);
+  app.use("/api/reports", reportsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

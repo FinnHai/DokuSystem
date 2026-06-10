@@ -15,6 +15,12 @@ docker compose up --build
 - Frontend: http://localhost:5173
 - Backend-API: http://localhost:4000 (Healthcheck: `/health`)
 
+Der Seed legt zwei Beispiel-Servicegruppen an: einen teilweise gefüllten
+Entwurf („Zahlungsverkehr-Gateway") zum Weiterarbeiten und ein **vollständig
+ausgefülltes, genehmigtes Beispiel-Dokument** („Online-Banking-Plattform")
+mit allen 19 Modulen, Workflow-Historie und Review-Feedback — sofort als
+PDF/Word/Excel exportierbar.
+
 Demo-Zugänge (Passwort jeweils `BesiDoc2026!`):
 
 | Rolle                  | E-Mail                        |
@@ -110,12 +116,13 @@ Siehe [docs/API.md](docs/API.md).
 
 ## Roadmap / bewusste Abgrenzung des aktuellen Stands
 
-Umgesetzt ist die Phase-1/2-Funktionalität der Spezifikation (alle 19 Module,
-Workflow, Review-System, Versionierung, Audit, PDF-Export, Dashboard,
+Umgesetzt ist die Phase-1/2/3-Kernfunktionalität der Spezifikation (alle 19
+Module, Workflow, Review-System, Versionierung mit Diff & Wiederherstellen,
+Audit, PDF-/Word-/Excel-Export, Auto-Save, Dashboard, Reports-Heatmap,
 Benachrichtigungen, Admin). Noch offen für Folgephasen:
 
-- Word-/Excel-Export, Report-Builder mit Scheduling
+- Report-Builder mit Scheduling
 - OIDC/SSO-Anbindung, 2FA, E-Mail-Versand (SMTP-Integration vorbereitet)
 - CVE-/License-Compliance-Integrationen, Abhängigkeitsgraph-Visualisierung
-- Offline-Modus, Auto-Save, Diff-Ansicht zwischen Versionen (API vorhanden)
+- Offline-Modus mit Sync
 - E2E-Tests (Playwright) und Lasttests

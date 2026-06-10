@@ -292,6 +292,64 @@ serviceGroupRouter.get(
   })
 );
 
+// ------------------------------------------------- Version wiederherstellen
+serviceGroupRouter.post(
+  "/:id/modules/:moduleKey/revert",
+  wrap(async (req, res) => {
+    const group = await loadGroup(req as never);
+    const def = getModuleDef(req.params.moduleKey);
+    if (!def) throw new HttpError(404, "Unbekanntes Modul");
+    const isOwner = group.createdById === req.user!.id;
+    if (!canEdit(group.status, req.user!.role, isOwner)) {
+      throw new HttpError(403, `Wiederherstellen im Zustand ${group.status} nicht erlaubt`);
+    }
+    const targetVersion = Number(req.body?.version);
+    if (!Number.isInteger(targetVersion) || targetVersion < 1) {
+      throw new HttpError(400, "Gültige Versionsnummer erforderlich");
+    }
+    const inst = await ModuleInstance.findOne({
+      where: { serviceGroupId: group.id, moduleKey: def.key },
+    });
+    if (!inst) throw new HttpError(404, "Modulinstanz nicht gefunden");
+    const target = await ModuleVersion.findOne({
+      where: { moduleInstanceId: inst.id, version: targetVersion },
+    });
+    if (!target) throw new HttpError(404, `Version ${targetVersion} nicht gefunden`);
+
+    const oldData = inst.data;
+    const newVersion = inst.version + 1;
+    await inst.update({
+      data: target.data,
+      completeness: completeness(def, target.data),
+      version: newVersion,
+      updatedById: req.user!.id,
+    });
+    await ModuleVersion.create({
+      moduleInstanceId: inst.id,
+      version: newVersion,
+      data: target.data,
+      createdById: req.user!.id,
+      comment: `Wiederhergestellt von Version ${targetVersion}`,
+    });
+    await audit(req, {
+      action: "module.reverted",
+      entityType: "ModuleInstance",
+      entityId: inst.id,
+      oldValue: oldData,
+      newValue: { revertedTo: targetVersion },
+    });
+    res.json({
+      ok: true,
+      version: newVersion,
+      data: target.data,
+      completeness: inst.completeness,
+      validation: validateModule(def, target.data, {
+        strict: group.status !== WorkflowState.ENTWURF,
+      }),
+    });
+  })
+);
+
 // ------------------------------------------------------ Workflow-Aktionen
 const workflowSchema = z.object({
   action: z.enum(["submit", "approve", "reject", "finalReject", "reopen", "archive"]),

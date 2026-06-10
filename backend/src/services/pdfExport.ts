@@ -8,32 +8,9 @@ import { ModuleInstance, ServiceGroup, User } from "../db";
 import { FieldDef, ModuleData, ModuleDef } from "../modules/types";
 import { MODULE_DEFS } from "../modules";
 import { isEmpty } from "../core/validation";
+import { formatScalar } from "./exportUtils";
 
 const COLORS = { primary: "#1a3a5c", accent: "#0066a1", text: "#222222", muted: "#666666" };
-
-function stripHtml(value: string): string {
-  return value.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-}
-
-function formatScalar(field: FieldDef, value: unknown): string {
-  if (isEmpty(value)) return "—";
-  switch (field.type) {
-    case "boolean":
-      return value ? "Ja" : "Nein";
-    case "daterange": {
-      const r = value as { from?: string; to?: string };
-      return `${r.from ?? "?"} bis ${r.to ?? "?"}`;
-    }
-    case "multienum":
-      return Array.isArray(value) ? value.join(", ") : String(value);
-    case "richtext":
-      return stripHtml(String(value));
-    case "number":
-      return `${value}${field.unit ? ` ${field.unit}` : ""}`;
-    default:
-      return String(value);
-  }
-}
 
 function renderTable(doc: PDFKit.PDFDocument, field: FieldDef, rows: ModuleData[]): void {
   const columns = field.columns ?? [];
