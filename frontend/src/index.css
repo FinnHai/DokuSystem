@@ -44,3 +44,117 @@ html {
 .table tbody tr.hover:hover {
   background: oklch(var(--p) / 0.04);
 }
+
+/* ---------- Animationen für Dropdowns, Selects & Modals ---------- */
+
+@keyframes dropdown-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modal-pop {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Alle DaisyUI-Dropdowns sanft aufklappen */
+.dropdown .dropdown-content {
+  animation: dropdown-pop 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: top right;
+}
+.dropdown-start .dropdown-content,
+.dropdown:not(.dropdown-end) .dropdown-content {
+  transform-origin: top left;
+}
+
+/* Dropdown-Menüeinträge: sanfter Hover mit kleinem Versatz */
+.dropdown .dropdown-content.menu li > * {
+  transition: background-color 0.12s ease, padding-left 0.12s ease;
+}
+.dropdown .dropdown-content.menu li > *:hover {
+  padding-left: 1.25rem;
+}
+
+/* Modals weich einblenden */
+.modal.modal-open .modal-box,
+dialog[open] .modal-box {
+  animation: modal-pop 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.modal.modal-open,
+dialog[open].modal {
+  animation: fade-in 0.15s ease;
+}
+
+/* Selects: sanfter Fokusring & Hover */
+.select,
+.input,
+.textarea {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.select:hover:not(:disabled),
+.input:hover:not(:disabled),
+.textarea:hover:not(:disabled) {
+  border-color: oklch(var(--p) / 0.5);
+}
+.select:focus,
+.input:focus-within,
+.input:focus,
+.textarea:focus {
+  box-shadow: 0 0 0 3px oklch(var(--p) / 0.15);
+  border-color: oklch(var(--p));
+  outline: none;
+}
+
+/* Multienum-Chips: kleiner Pop beim Anhaken */
+@keyframes chip-pop {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.06);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.label:has(.checkbox:checked) {
+  animation: chip-pop 0.18s ease;
+  border-color: oklch(var(--p) / 0.6);
+  background: oklch(var(--p) / 0.06);
+}
+
+/* Validierungs-/Feedback-Einträge gleiten herein */
+@keyframes slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.toast .alert {
+  animation: dropdown-pop 0.2s cubic-bezier(0.22, 1, 0.36, 1);
+}

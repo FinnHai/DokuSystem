@@ -7,6 +7,7 @@ import {
   Avatar,
   IconCheckCircle,
   IconChat,
+  IconClock,
   IconDownload,
   IconPaperPlane,
   IconWarning,
@@ -27,6 +28,36 @@ interface ModuleResponse {
   version: number;
   validation: { valid: boolean; issues: ValidationIssue[] };
   editable: boolean;
+}
+
+interface ModuleVersionDto {
+  id: string;
+  version: number;
+  data: Record<string, unknown>;
+  comment: string | null;
+  createdAt: string;
+}
+
+/** Wert eines Feldes für die Diff-Ansicht lesbar formatieren. */
+function formatForDiff(value: unknown): string {
+  if (value === undefined || value === null || value === "") return "—";
+  if (Array.isArray(value)) {
+    if (value.length === 0) return "—";
+    return value
+      .map((row) =>
+        typeof row === "object" && row !== null
+          ? Object.values(row as Record<string, unknown>).join(" · ")
+          : String(row)
+      )
+      .join("\n");
+  }
+  if (typeof value === "object") {
+    const r = value as { from?: string; to?: string };
+    if (r.from || r.to) return `${r.from ?? "?"} bis ${r.to ?? "?"}`;
+    return JSON.stringify(value);
+  }
+  if (typeof value === "boolean") return value ? "Ja" : "Nein";
+  return String(value).replace(/<[^>]+>/g, " ").trim();
 }
 
 function ModuleStatusDot({ completeness, valid }: { completeness: number; valid: boolean }) {
@@ -66,8 +97,12 @@ export default function ServiceGroupDetail() {
   const [rejectCategory, setRejectCategory] = useState("zu unvollständig");
   const [newComment, setNewComment] = useState("");
   const [commentSeverity, setCommentSeverity] = useState<"OPTIONAL" | "KRITISCH">("OPTIONAL");
+  const [versions, setVersions] = useState<ModuleVersionDto[]>([]);
+  const [diffVersion, setDiffVersion] = useState<ModuleVersionDto | null>(null);
   const dataRef = useRef(moduleData);
   dataRef.current = moduleData;
+  const dirtyRef = useRef(dirty);
+  dirtyRef.current = dirty;
 
   const loadDetail = useCallback(() => {
     if (!id) return;
@@ -86,6 +121,9 @@ export default function ServiceGroupDetail() {
         .catch((e) => toast("error", e.message));
       api<ReviewCommentDto[]>(`/api/service-groups/${id}/comments?moduleKey=${key}`)
         .then(setComments)
+        .catch(() => undefined);
+      api<ModuleVersionDto[]>(`/api/service-groups/${id}/modules/${key}/versions`)
+        .then(setVersions)
         .catch(() => undefined);
     },
     [id, toast]
@@ -131,6 +169,37 @@ export default function ServiceGroupDetail() {
     return () => window.removeEventListener("keydown", handler);
   }, [save, detail?.editable]);
 
+  // Auto-Save alle 30 Sekunden bei ungespeicherten Änderungen (F.3)
+  useEffect(() => {
+    if (!detail?.editable) return;
+    const interval = setInterval(() => {
+      if (dirtyRef.current) void save();
+    }, 30_000);
+    return () => clearInterval(interval);
+  }, [detail?.editable, save]);
+
+  const revertTo = async (version: number) => {
+    if (!id) return;
+    if (!window.confirm(`Version ${version} wiederherstellen? Der aktuelle Stand bleibt als eigene Version erhalten.`)) {
+      return;
+    }
+    try {
+      const res = await api<{ data: Record<string, unknown>; validation: { issues: ValidationIssue[] } }>(
+        `/api/service-groups/${id}/modules/${activeKey}/revert`,
+        { method: "POST", body: JSON.stringify({ version }) }
+      );
+      setModuleData(res.data);
+      setIssues(res.validation.issues);
+      setDirty(false);
+      setDiffVersion(null);
+      toast("success", `Version ${version} wiederhergestellt`);
+      loadDetail();
+      loadModule(activeKey);
+    } catch (err) {
+      toast("error", err instanceof Error ? err.message : "Wiederherstellen fehlgeschlagen");
+    }
+  };
+
   const workflowAction = async (action: string, reason?: string, category?: string) => {
     if (!id) return;
     try {
@@ -175,17 +244,26 @@ export default function ServiceGroupDetail() {
     }
   };
 
-  const exportPdf = async () => {
+  const exportFile = async (format: "pdf" | "docx" | "xlsx") => {
     if (!id || !detail) return;
     try {
       const isDraft = detail.status !== "GENEHMIGT" && detail.status !== "ARCHIVIERT";
-      const blob = await api<Blob>(`/api/export/${id}/pdf${isDraft ? "?draft=true" : ""}`);
+      const res = await fetch(
+        `/api/export/${id}/${format}${isDraft ? "?draft=true" : ""}`,
+        { headers: { Authorization: `Bearer ${useAuthStore.getState().accessToken}` } }
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error ?? `Export fehlgeschlagen (${res.status})`);
+      }
+      const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `besidoc-${detail.name}.pdf`;
+      a.download = `besidoc-${detail.name}.${format}`;
       a.click();
       URL.revokeObjectURL(url);
+      toast("success", `${format.toUpperCase()}-Export heruntergeladen`);
     } catch (err) {
       toast("error", err instanceof Error ? err.message : "Export fehlgeschlagen");
     }
@@ -268,9 +346,25 @@ export default function ServiceGroupDetail() {
                   Archivieren
                 </button>
               )}
-              <button className="btn btn-outline btn-sm" onClick={exportPdf}>
-                <IconDownload className="w-4 h-4" /> PDF
-              </button>
+              <div className="dropdown dropdown-end">
+                <button tabIndex={0} className="btn btn-outline btn-sm">
+                  <IconDownload className="w-4 h-4" /> Export
+                </button>
+                <ul
+                  tabIndex={0}
+                  className="dropdown-content dropdown-animated z-50 menu bg-base-100 rounded-box shadow-2xl border border-base-300 w-48 p-2"
+                >
+                  <li>
+                    <button onClick={() => exportFile("pdf")}>📄 PDF-Dokument</button>
+                  </li>
+                  <li>
+                    <button onClick={() => exportFile("docx")}>📝 Word (.docx)</button>
+                  </li>
+                  <li>
+                    <button onClick={() => exportFile("xlsx")}>📊 Excel (.xlsx)</button>
+                  </li>
+                </ul>
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -485,8 +579,113 @@ export default function ServiceGroupDetail() {
               </div>
             </div>
           </div>
+          <div className="card bg-base-100 border border-base-300 shadow-sm">
+            <div className="card-body p-4">
+              <h3 className="font-bold text-sm flex items-center gap-2">
+                <IconClock className="w-4 h-4" /> Versionen
+                <span className="badge badge-ghost badge-xs ml-auto">{versions.length}</span>
+              </h3>
+              {versions.length === 0 ? (
+                <p className="text-xs opacity-50 text-center py-3">Noch keine gespeicherten Versionen.</p>
+              ) : (
+                <ul className="space-y-1.5 max-h-56 overflow-y-auto">
+                  {versions.map((v) => (
+                    <li
+                      key={v.id}
+                      className="flex items-center gap-2 text-xs p-2 rounded-lg border border-base-200 hover:bg-base-200/60 transition-colors"
+                    >
+                      <span className="badge badge-primary badge-outline badge-xs font-mono shrink-0">
+                        v{v.version}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate opacity-70">
+                          {new Date(v.createdAt).toLocaleString("de-DE")}
+                        </span>
+                        {v.comment && <span className="block truncate italic opacity-50">{v.comment}</span>}
+                      </span>
+                      <button
+                        className="btn btn-ghost btn-xs"
+                        title="Änderungen ansehen"
+                        onClick={() => setDiffVersion(v)}
+                      >
+                        Diff
+                      </button>
+                      {detail.editable && (
+                        <button
+                          className="btn btn-ghost btn-xs text-primary"
+                          title="Diese Version wiederherstellen"
+                          onClick={() => revertTo(v.version)}
+                        >
+                          ↺
+                        </button>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
         </div>
       </div>
+
+      {diffVersion && activeDef && (
+        <dialog open className="modal modal-open">
+          <div className="modal-box rounded-2xl max-w-3xl">
+            <h3 className="font-bold text-xl">
+              Was hat sich geändert?
+              <span className="badge badge-primary badge-outline font-mono ml-2">
+                v{diffVersion.version} → aktuell
+              </span>
+            </h3>
+            <p className="text-sm opacity-60 mt-1">
+              {new Date(diffVersion.createdAt).toLocaleString("de-DE")}
+              {diffVersion.comment ? ` · ${diffVersion.comment}` : ""}
+            </p>
+            <div className="mt-4 space-y-3 max-h-[60vh] overflow-y-auto">
+              {activeDef.fields
+                .map((f) => ({
+                  field: f,
+                  oldVal: formatForDiff(diffVersion.data[f.key]),
+                  newVal: formatForDiff(moduleData[f.key]),
+                }))
+                .filter((d) => d.oldVal !== d.newVal)
+                .map((d) => (
+                  <div key={d.field.key} className="rounded-xl border border-base-300 overflow-hidden">
+                    <p className="text-xs font-bold px-3 py-2 bg-base-200/60">{d.field.label}</p>
+                    <div className="grid grid-cols-2 divide-x divide-base-200 text-xs">
+                      <div className="p-3 bg-error/5">
+                        <p className="font-semibold text-error mb-1">v{diffVersion.version}</p>
+                        <p className="whitespace-pre-wrap break-words opacity-80">{d.oldVal}</p>
+                      </div>
+                      <div className="p-3 bg-success/5">
+                        <p className="font-semibold text-success mb-1">aktuell</p>
+                        <p className="whitespace-pre-wrap break-words opacity-80">{d.newVal}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              {activeDef.fields.every(
+                (f) => formatForDiff(diffVersion.data[f.key]) === formatForDiff(moduleData[f.key])
+              ) && (
+                <p className="text-center text-sm opacity-60 py-6">
+                  Keine inhaltlichen Unterschiede zur aktuellen Fassung.
+                </p>
+              )}
+            </div>
+            <div className="modal-action">
+              {detail.editable && (
+                <button className="btn btn-primary btn-sm" onClick={() => revertTo(diffVersion.version)}>
+                  ↺ Diese Version wiederherstellen
+                </button>
+              )}
+              <button className="btn btn-ghost btn-sm" onClick={() => setDiffVersion(null)}>
+                Schließen
+              </button>
+            </div>
+          </div>
+          <button className="modal-backdrop" onClick={() => setDiffVersion(null)} aria-label="Schließen" />
+        </dialog>
+      )}
 
       {rejectDialog && (
         <dialog open className="modal modal-open">

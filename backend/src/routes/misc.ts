@@ -134,6 +134,60 @@ dashboardRouter.get(
   })
 );
 
+// ---------------------------------------------------------------- Reports
+export const reportsRouter = Router();
+reportsRouter.get(
+  "/completeness",
+  requireAuth,
+  wrap(async (req, res) => {
+    const groups = await ServiceGroup.findAll({
+      where: { tenantId: req.user!.tenantId },
+      include: [
+        { model: ModuleInstance, as: "modules", attributes: ["moduleKey", "completeness"] },
+        { model: User, as: "createdBy", attributes: ["id", "name"] },
+      ],
+      order: [["name", "ASC"]],
+    });
+
+    const today = new Date();
+    const rows = groups
+      // Entwürfe anderer Nutzer bleiben unsichtbar (C.1)
+      .filter(
+        (g) =>
+          req.user!.role === Role.ADMIN ||
+          g.status !== WorkflowState.ENTWURF ||
+          g.createdById === req.user!.id
+      )
+      .map((g) => {
+        const modules = (g.get("modules") as ModuleInstance[]) ?? [];
+        const byKey: Record<string, number> = {};
+        for (const m of modules) byKey[m.moduleKey] = m.completeness;
+        const overall = modules.length
+          ? Math.round(modules.reduce((s, m) => s + m.completeness, 0) / modules.length)
+          : 0;
+        return {
+          id: g.id,
+          name: g.name,
+          status: g.status,
+          dueDate: g.dueDate,
+          createdBy: g.get("createdBy"),
+          overall,
+          overdue:
+            !!g.dueDate &&
+            new Date(g.dueDate) < today &&
+            g.status !== WorkflowState.GENEHMIGT &&
+            g.status !== WorkflowState.ARCHIVIERT,
+          modules: byKey,
+        };
+      });
+
+    res.json({
+      moduleKeys: MODULE_DEFS.map((d) => ({ key: d.key, index: d.index, title: d.title })),
+      rows,
+    });
+  })
+);
+
 // ----------------------------------------------------------- Review-Queue
 export const reviewRouter = Router();
 reviewRouter.get(

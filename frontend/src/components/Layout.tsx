@@ -5,6 +5,7 @@ import { useAuthStore, useToastStore } from "../store";
 import {
   Avatar,
   IconBell,
+  IconChartBar,
   IconClipboardCheck,
   IconFolder,
   IconHome,
@@ -62,6 +63,7 @@ export default function Layout() {
     ...(user.role === "FACHLICHER_PRUEFER" || user.role === "REDAKTIONELLER_PRUEFER" || user.role === "ADMIN"
       ? [{ to: "/reviews", label: "Review-Queue", icon: <IconClipboardCheck /> }]
       : []),
+    { to: "/reports", label: "Reports", icon: <IconChartBar /> },
     ...(user.role === "ADMIN"
       ? [
           { to: "/admin/users", label: "Benutzer", icon: <IconUsers /> },

@@ -32,6 +32,7 @@ Fehler werden als `{ "error": "Beschreibung" }` mit passendem HTTP-Status gelief
 | GET     | `/api/service-groups/:id/modules/:key`            | Daten + Validierung + Füllgrad                              |
 | PUT     | `/api/service-groups/:id/modules/:key`            | `{data, versionComment?}` – speichert + erzeugt Version    |
 | GET     | `/api/service-groups/:id/modules/:key/versions`   | Versionshistorie (max. 50)                                  |
+| POST    | `/api/service-groups/:id/modules/:key/revert`     | `{version}` – stellt eine frühere Version wieder her (als neue Version) |
 
 Im Zustand ENTWURF werden fehlende Pflichtfelder beim Speichern als
 Warnungen zurückgegeben (WIP-Speichern); fachliche Formatfehler (CIDR,
@@ -65,7 +66,12 @@ Aktionen: `submit`, `approve`, `reject` (Grund Pflicht, Kategorien:
 
 ## Export
 
-| GET | `/api/export/:id/pdf` | PDF der kompletten Servicegruppe. Nur GENEHMIGT/ARCHIVIERT; `?draft=true` für Vorschau, `?exclude=key1,key2` schließt Module aus |
+| GET | `/api/export/:id/pdf` | PDF der kompletten Servicegruppe |
+| GET | `/api/export/:id/docx` | Word-Dokument (.docx), editierbar |
+| GET | `/api/export/:id/xlsx` | Excel-Arbeitsmappe (Übersicht + ein Tab pro Modul) |
+
+Für alle Formate gilt: nur GENEHMIGT/ARCHIVIERT; `?draft=true` für eine
+Vorschau, `?exclude=key1,key2` schließt Module aus.
 
 ## Administration
 
@@ -80,6 +86,7 @@ Aktionen: `submit`, `approve`, `reject` (Grund Pflicht, Kategorien:
 ## Sonstiges
 
 | GET   | `/api/dashboard`               | KPIs + „Meine Aufgaben"                    |
+| GET   | `/api/reports/completeness`    | Vollständigkeits-Matrix aller Servicegruppen × Module |
 | GET   | `/api/reviews/queue`           | Ausstehende Reviews der eigenen Prüfrolle  |
 | GET   | `/api/notifications`           | In-App-Benachrichtigungen + Unread-Count   |
 | PATCH | `/api/notifications/:id/read`  | Als gelesen markieren                      |
